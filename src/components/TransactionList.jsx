@@ -2,16 +2,9 @@ import React from 'react'
 
 export default function TransactionList({ transactions, onEdit, onDelete }) {
 
-  // Convert Firestore Timestamp → "YYYY-MM-DD"
   function formatDate(date) {
     if (!date) return ""
-
-    // Firestore Timestamp?
-    if (date?.toDate) {
-      return date.toDate().toISOString().split("T")[0]
-    }
-
-    // Already a string
+    if (date?.toDate) return date.toDate().toISOString().split("T")[0]
     return date
   }
 
@@ -46,7 +39,8 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
 
               <td>{t.category}</td>
 
-              <th>Label</th>
+              {/* FIXED: show the REAL label */}
+              <td>{t.label}</td>
 
               <td>{Number(t.amount).toFixed(2)}</td>
 

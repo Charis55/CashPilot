@@ -1,3 +1,4 @@
+// Dashboard.jsx
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
@@ -20,42 +21,38 @@ import MonthlyIncomePanel from "./MonthlyIncomePanel";
 
 export default function Dashboard() {
   const { currentUser } = useAuth();
+
   const [transactions, setTransactions] = useState([]);
   const [budget, setBudget] = useState(0);
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [editTransaction, setEditTransaction] = useState(null);
 
-  /* ----------------------------------------------------------
-      📌 CHART REFS FOR PDF EXPORT
-  ---------------------------------------------------------- */
   const pieChartRef = useRef(null);
   const barChartRef = useRef(null);
 
-  /* ----------------------------------------------------------
-      🔥 REAL-TIME TRANSACTIONS LISTENER
-  ---------------------------------------------------------- */
-  useEffect(() => {
-    if (!currentUser) return;
+/* ----------------------------------------------------------
+    🔥 REAL-TIME TRANSACTIONS LISTENER
+---------------------------------------------------------- */
+useEffect(() => {
+  if (!currentUser) return;
 
-    const q = query(
-      collection(db, "transactions"),
-      where("userId", "==", currentUser.uid),
-      orderBy("createdAt", "desc")
-    );
+  const q = query(
+    collection(db, "transactions"),
+    where("userId", "==", currentUser.uid),
+    orderBy("createdAt", "desc")
+  );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const docs = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setTransactions(docs);
-      },
-      (error) => console.error("🔥 Transaction listener error:", error)
-    );
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const docs = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setTransactions(docs);
+  });
 
-    return unsubscribe;
-  }, [currentUser]);
+  return unsubscribe;
+}, [currentUser]);
+
 
   /* ----------------------------------------------------------
       🔥 REAL-TIME BUDGET LISTENER
@@ -81,20 +78,16 @@ export default function Dashboard() {
 
   /* ----------------------------------------------------------
       🔥 REAL-TIME MONTHLY INCOME LISTENER
+      Using monthlyIncome/{uid}
   ---------------------------------------------------------- */
-  const [monthlyIncome, setMonthlyIncome] = useState(0);
-
   useEffect(() => {
     if (!currentUser) return;
 
-    const q = query(
-      collection(db, "monthlyIncome"),
-      where("userId", "==", currentUser.uid)
-    );
+    const ref = doc(db, "monthlyIncome", currentUser.uid);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setMonthlyIncome(snapshot.docs[0].data().amount || 0);
+    const unsubscribe = onSnapshot(ref, (snapshot) => {
+      if (snapshot.exists()) {
+        setMonthlyIncome(snapshot.data().amount || 0);
       } else {
         setMonthlyIncome(0);
       }
@@ -128,7 +121,7 @@ export default function Dashboard() {
   }, [budget, totals.expense]);
 
   /* ----------------------------------------------------------
-      🗑️ DELETE HANDLER
+      🗑️ DELETE TRANSACTION
   ---------------------------------------------------------- */
   async function handleDelete(id) {
     try {
@@ -139,51 +132,50 @@ export default function Dashboard() {
     }
   }
 
-  /* ----------------------------------------------------------
-      UI
-  ---------------------------------------------------------- */
   return (
     <div className="dashboard">
 
       {/* SUMMARY CARDS */}
       <section className="summary">
 
-  <div className="summary-box">
-    <h3>Total Income</h3>
-    <p>₦{totals.income.toFixed(2)}</p>
-  </div>
+        <div className="summary-box">
+          <h3>Total Income</h3>
+          <p>₦{totals.income.toFixed(2)}</p>
+        </div>
 
-  <div className="summary-box">
-    <h3>Total Expenses</h3>
-    <p>₦{totals.expense.toFixed(2)}</p>
-  </div>
+        <div className="summary-box">
+          <h3>Total Expenses</h3>
+          <p>₦{totals.expense.toFixed(2)}</p>
+        </div>
 
-  <div className="summary-box">
-    <h3>Balance</h3>
-    <p>₦{totals.balance.toFixed(2)}</p>
-  </div>
+        <div className="summary-box">
+          <h3>Balance</h3>
+          <p>₦{totals.balance.toFixed(2)}</p>
+        </div>
 
-  <div className="summary-box wide">
-    <BudgetPanel
-      budget={budget}
-      setBudget={setBudget}
-      userId={currentUser?.uid}
-    />
-  </div>
+        {/* WIDE BOX: BUDGET */}
+        <div className="summary-box wide">
+          <BudgetPanel
+            budget={budget}
+            setBudget={setBudget}
+            userId={currentUser?.uid}
+          />
+        </div>
 
-  <div className="summary-box wide">
-    <MonthlyIncomePanel
-      income={monthlyIncome}
-      userId={currentUser?.uid}
-    />
-  </div>
+        {/* WIDE BOX: MONTHLY INCOME */}
+        <div className="summary-box wide">
+          <MonthlyIncomePanel
+            monthlyIncome={monthlyIncome}
+            setMonthlyIncome={setMonthlyIncome}
+            userId={currentUser?.uid}   // REQUIRED FOR RULES
+          />
+        </div>
 
-</section>
+      </section>
 
-
+      {/* MAIN LAYOUT */}
       <section className="layout">
 
-        {/* LEFT SIDE — FORM + TABLE */}
         <div className="left">
           <TransactionForm
             editTransaction={editTransaction}
@@ -197,13 +189,10 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* RIGHT SIDE — CHARTS + EXPORTS */}
         <div className="right">
 
-          {/* GRID OF TWO CHARTS */}
           <div className="charts-section">
 
-            {/* BAR CHART */}
             <div className="chart-card" ref={barChartRef}>
               <h3>Income vs Expense</h3>
               <div className="chart-container">
@@ -211,7 +200,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* PIE CHART */}
             <div className="chart-card" ref={pieChartRef}>
               <h3>Expense Breakdown</h3>
               <div className="chart-container">
@@ -221,15 +209,18 @@ export default function Dashboard() {
 
           </div>
 
-          {/* EXPORT BUTTONS */}
           <ExportButtons
-            transactions={transactions}
-            totals={totals}
-            pieChartRef={pieChartRef}
-            barChartRef={barChartRef}
-          />
+  transactions={transactions}
+  totals={totals}
+  monthlyIncome={monthlyIncome}
+  budget={budget}
+  pieChartRef={pieChartRef}
+  barChartRef={barChartRef}
+/>
+
 
         </div>
+
       </section>
     </div>
   );

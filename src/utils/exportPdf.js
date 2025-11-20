@@ -1,92 +1,97 @@
 /* ------------------------------------------------------
-   CashPilot Modern PDF Exporter using jsPDF + html2canvas
-   ------------------------------------------------------ */
+   CashPilot Modern PDF Exporter (Clean + Big Logo)
+------------------------------------------------------ */
 
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-// Utility: Format currency
+// Format currency properly
 const formatCurrency = (amount) =>
   "₦" + Number(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 });
 
 export async function generateCashPilotPDF({
   transactions,
-  summary,
+  totals,
+  monthlyIncome,
+  budget,
   charts,
 }) {
   const doc = new jsPDF("p", "pt", "a4");
-
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 40;
 
-  /* ------------------------------
-     CASH PILOT HEADER + LOGO
-  ------------------------------ */
-
-  const logoImg = "/assets/cashpilot-logo.png"; // make sure this path works
+  /* ---------------------------------------------
+     HEADER + BIG LOGO
+  --------------------------------------------- */
+  const logoPath = "/assets/cashpilot-logo.png";
 
   try {
-    const img = await loadImage(logoImg);
-    doc.addImage(img, "PNG", pageWidth / 2 - 25, y, 50, 50);
+    const img = await loadImage(logoPath);
+    doc.addImage(img, "PNG", pageWidth / 2 - 60, y, 120, 120); // BIGGER LOGO
   } catch (e) {
     console.warn("Logo failed to load:", e);
   }
 
-  y += 70;
+  y += 150;
 
+  doc.setFont("Helvetica", "bold");
   doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
   doc.text("CashPilot Financial Report", pageWidth / 2, y, { align: "center" });
 
   y += 20;
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleString();
+  doc.setFont("Helvetica", "normal");
   doc.setFontSize(12);
-  doc.setFont("helvetica", "normal");
   doc.text(`Generated on: ${today}`, pageWidth / 2, y, { align: "center" });
 
-  y += 30;
+  y += 40;
 
-  /* ------------------------------
+  /* ---------------------------------------------
      SUMMARY SECTION
-  ------------------------------ */
+  --------------------------------------------- */
 
   doc.setFontSize(16);
   doc.text("📊 Summary Overview", 40, y);
   y += 20;
 
   doc.setFontSize(12);
-  doc.text(`Total Income:  ${formatCurrency(summary.totalIncome)}`, 40, y);
+  doc.text(`Total Income:  ${formatCurrency(totals.income)}`, 40, y);
   y += 18;
-  doc.text(`Total Expenses: ${formatCurrency(summary.totalExpenses)}`, 40, y);
+  doc.text(`Total Expenses: ${formatCurrency(totals.expense)}`, 40, y);
   y += 18;
-  doc.text(`Balance:       ${formatCurrency(summary.balance)}`, 40, y);
+  doc.text(`Balance:       ${formatCurrency(totals.balance)}`, 40, y);
+  y += 18;
+  doc.text(`Monthly Income: ${formatCurrency(monthlyIncome)}`, 40, y);
+  y += 18;
+  doc.text(`Budget:        ${formatCurrency(budget)}`, 40, y);
+
   y += 30;
 
-  /* ------------------------------
-     CHART: PIE + BAR
-  ------------------------------ */
+  /* ---------------------------------------------
+     CHARTS SECTION
+  --------------------------------------------- */
 
-  if (charts.pieChartRef?.current) {
-    const pieImage = await convertChartToImage(charts.pieChartRef.current);
+  if (charts?.pieChartRef?.current) {
     doc.setFontSize(14);
-    doc.text("Expense Distribution", 40, y);
+    doc.text("Expense Breakdown", 40, y);
+    const pieImg = await convertToImage(charts.pieChartRef.current);
     y += 10;
-    doc.addImage(pieImage, "PNG", 40, y, 220, 200);
+    doc.addImage(pieImg, "PNG", 40, y, 220, 200);
   }
 
-  if (charts.barChartRef?.current) {
-    const barImage = await convertChartToImage(charts.barChartRef.current);
+  if (charts?.barChartRef?.current) {
     doc.setFontSize(14);
-    doc.text("Income vs Expenses", 300, y - 10);
-    doc.addImage(barImage, "PNG", 300, y, 220, 200);
+    doc.text("Income vs Expense", 300, y - 10);
+    const barImg = await convertToImage(charts.barChartRef.current);
+    doc.addImage(barImg, "PNG", 300, y, 220, 200);
   }
 
-  y += 230;
+  y += 240;
 
-  /* ------------------------------
+  /* ---------------------------------------------
      TRANSACTIONS TABLE
-  ------------------------------ */
+  --------------------------------------------- */
 
   doc.setFontSize(16);
   doc.text("📄 Transactions", 40, y);
@@ -94,64 +99,61 @@ export async function generateCashPilotPDF({
 
   doc.setLineWidth(1);
   doc.line(40, y, pageWidth - 40, y);
-  y += 10;
+  y += 15;
 
+  // Table headers
+  doc.setFontSize(12);
   const headers = ["Date", "Type", "Category", "Amount", "Note"];
+  const colX = [40, 140, 240, 340, 440];
 
-  doc.setFontSize(11);
-  let rowY = y;
+  headers.forEach((h, i) => doc.text(h, colX[i], y));
+  y += 15;
 
-  // Table header
-  headers.forEach((h, i) => {
-    doc.text(h, 40 + i * 100, rowY);
-  });
-
-  rowY += 12;
-
+  // Rows
   transactions.forEach((t) => {
-    if (rowY > 760) {
+    if (y > 770) {
       doc.addPage();
-      rowY = 40;
+      y = 40;
     }
 
-    doc.text(String(t.date).substring(0, 10), 40, rowY);
-    doc.text(t.type, 140, rowY);
-    doc.text(t.category, 240, rowY);
-    doc.text(formatCurrency(t.amount), 340, rowY);
-    doc.text(t.note || "-", 440, rowY);
+    doc.text(String(t.date).slice(0, 10), colX[0], y);
+    doc.text(t.type, colX[1], y);
+    doc.text(t.category, colX[2], y);
+    doc.text(formatCurrency(t.amount), colX[3], y);
+    doc.text(t.note || "-", colX[4], y);
 
-    rowY += 16;
+    y += 18;
   });
-
-  /* ------------------------------
-     SAVE FILE
-  ------------------------------ */
 
   doc.save(`CashPilot-${today}.pdf`);
 }
 
-/* ------------------------------
+/* ---------------------------------------------
    HELPERS
------------------------------- */
+--------------------------------------------- */
 
-function loadImage(src) {
+function loadImage(path) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    img.src = path;
     img.onload = () => resolve(img);
     img.onerror = reject;
-    img.src = src;
   });
 }
 
-async function convertChartToImage(chartElement) {
-  const canvas = await html2canvas(chartElement, { scale: 2 });
+async function convertToImage(chartEl) {
+  const canvas = await html2canvas(chartEl, { scale: 2 });
   return canvas.toDataURL("image/png");
 }
+
+/* ---------------------------------------------
+   CSV EXPORT
+--------------------------------------------- */
+
 export function exportCSV(transactions) {
   const today = new Date().toISOString().split("T")[0];
-  let csv = "Date,Type,Category,Amount,Note\n";
 
+  let csv = "Date,Type,Category,Amount,Note\n";
   transactions.forEach((t) => {
     csv += `${t.date},${t.type},${t.category},${t.amount},${t.note || ""}\n`;
   });

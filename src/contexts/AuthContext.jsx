@@ -79,25 +79,23 @@ export function AuthProvider({ children }) {
   // ----------------------------------------------------
   // 🔥 AUTH STATE LISTENER
   // ----------------------------------------------------
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          await reload(auth.currentUser); // refresh verification state
-        } catch (e) {
-          console.warn("Reload failed:", e);
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      user.reload().then(() => {
+        if (!user.emailVerified) {
+          setCurrentUser({ ...user, unverified: true });
+        } else {
+          setCurrentUser(user);
         }
+      })
+    } else {
+      setCurrentUser(null);
+    }
+  });
 
-        setCurrentUser(auth.currentUser);
-      } else {
-        setCurrentUser(null);
-      }
-
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
+  return unsubscribe;
+}, []);
 
 
   const value = {

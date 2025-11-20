@@ -49,7 +49,6 @@ export default function TransactionForm({ editTransaction, clearEdit }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-
     if (!currentUser) return alert("User not logged in")
 
     if (!form.label || !form.amount || !form.category || !form.date) {
@@ -60,10 +59,11 @@ export default function TransactionForm({ editTransaction, clearEdit }) {
       const dateValue = new Date(form.date)
 
       if (editTransaction) {
+        // UPDATE
         const ref = doc(db, "transactions", editTransaction.id)
 
         await updateDoc(ref, {
-          label: form.label,
+          label: form.label,   // FIXED ✔
           type: form.type,
           amount: Number(form.amount),
           category: form.category,
@@ -76,8 +76,9 @@ export default function TransactionForm({ editTransaction, clearEdit }) {
         clearEdit()
 
       } else {
+        // ADD
         await addDoc(collection(db, "transactions"), {
-          label: form.label,
+          label: form.label,   // FIXED ✔
           type: form.type,
           amount: Number(form.amount),
           category: form.category,
@@ -177,6 +178,7 @@ export default function TransactionForm({ editTransaction, clearEdit }) {
             </button>
           )}
         </div>
+
       </form>
     </div>
   )
