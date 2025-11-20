@@ -80,18 +80,21 @@ export function AuthProvider({ children }) {
   // 🔥 AUTH STATE LISTENER
   // ----------------------------------------------------
 useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
     if (user) {
-      user.reload().then(() => {
-        if (!user.emailVerified) {
-          setCurrentUser({ ...user, unverified: true });
-        } else {
-          setCurrentUser(user);
-        }
-      })
+      await user.reload();
+
+      if (!user.emailVerified) {
+        setCurrentUser({ ...user, unverified: true });
+      } else {
+        setCurrentUser(user);
+      }
     } else {
       setCurrentUser(null);
     }
+
+    // ✅ CRUCIAL FIX:
+    setLoading(false);
   });
 
   return unsubscribe;

@@ -1,11 +1,10 @@
 import React from "react";
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import ResetPassword from "./components/auth/ResetPassword";
 import Dashboard from "./components/Dashboard";
-import { useLocation } from "react-router-dom";
 
 function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
@@ -15,6 +14,7 @@ function PrivateRoute({ children }) {
 
 function AppShell() {
   const { currentUser, logout } = useAuth();
+  const location = useLocation();
 
   const isAuthPage =
     location.pathname === "/login" ||
@@ -24,7 +24,6 @@ function AppShell() {
   return (
     <div className="app-shell">
 
-      {/* 🔥 Hide header on auth pages */}
       {!isAuthPage && (
         <header className="app-header">
           <div className="header-logo">
@@ -56,7 +55,6 @@ function AppShell() {
           <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </main>
-
     </div>
   );
 }
